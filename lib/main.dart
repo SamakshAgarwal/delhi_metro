@@ -9,14 +9,24 @@ void main() => runApp(MyApp());
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    LoadDb().loadDb();
-    Services().openDB();
     return ChangeNotifierProvider<Services>(
-      create: (BuildContext context) => Services(),
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: HomePage(),
-      ),
-    );
+        create: (BuildContext context) => Services(),
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home:FutureBuilder(
+              future: LoadDb().loadDb(),
+              builder: (context, snapshot) {
+                if (snapshot.data == null)
+                  return Scaffold(
+                    body: Container(
+                      child: Center(
+                        child: Text('Loading Database...'),
+                      ),
+                    ),
+                  );
+                return HomePage();
+              }),
+        ),
+      );
   }
 }

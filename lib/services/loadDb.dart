@@ -15,12 +15,11 @@ class LoadDb {
       ByteData data = await rootBundle.load(join("assets", "dmrcSqlite.db"));
       List<int> bytes =
           data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-
-      // Write and flush the bytes written
       await File(path).writeAsBytes(bytes, flush: true);
     }
     else {
       print("Opening existing db");
     }
+    return "Opened";
   }
 }

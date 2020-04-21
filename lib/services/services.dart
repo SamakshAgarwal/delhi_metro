@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
-import 'route.dart' as route;
+import 'journey.dart';
 
 class Services extends ChangeNotifier {
   static Database db;
@@ -15,6 +15,7 @@ class Services extends ChangeNotifier {
   List routeList = [];
   List routeIds = [];
   List lines = [];
+  Map connectedLines = <String, List>{};
   var lineMap = Map();
   var lineColorMap = Map();
   String time;
@@ -31,6 +32,7 @@ class Services extends ChangeNotifier {
       value.forEach(
           (row) => stationList[row['station_name']] = row['station_id']);
     });
+    await getConnectedLines();
     return stationList.keys.toList()..sort();
   }
 
@@ -44,7 +46,7 @@ class Services extends ChangeNotifier {
       suggestions = stationList.keys
           .toList()
           .where(
-              (station) => station.toLowerCase().startsWith(text.toLowerCase()))
+              (station) => station.toLowerCase().contains(text.toLowerCase()))
           .toList();
     notifyListeners();
   }
@@ -71,7 +73,6 @@ class Services extends ChangeNotifier {
     });
     route = route.substring(0, route.indexOf(':'));
     routeIds = route.split('-');
-    print('Normal: $routeIds');
 
     var airportRoute;
     await db
@@ -84,7 +85,6 @@ class Services extends ChangeNotifier {
     });
     airportRoute = airportRoute.substring(0, airportRoute.indexOf(':'));
     List airportRouteIds = airportRoute.split('-');
-    print('Airport: $airportRouteIds');
 
     var violetRoute;
     await db
@@ -97,7 +97,6 @@ class Services extends ChangeNotifier {
     });
     violetRoute = violetRoute.substring(0, violetRoute.indexOf(':'));
     List violetRouteIds = airportRoute.split('-');
-    print('Violet: $airportRouteIds');
 
     var otherRoute;
     List otherRouteIds;
@@ -109,7 +108,6 @@ class Services extends ChangeNotifier {
       });
       otherRoute = otherRoute.substring(0, otherRoute.indexOf(':'));
       otherRouteIds = otherRoute.split('-');
-      print('Other: $otherRouteIds');
     }
     routeIds = ([
       routeIds,
@@ -118,7 +116,6 @@ class Services extends ChangeNotifier {
       if (otherRouteIds != null) otherRouteIds
     ]..sort((a, b) => (a.length).compareTo(b.length)))[0];
     routeIds = routeIds.length < violetRoute.length ? routeIds : otherRoute;
-    print('Route ids: $routeIds');
 
     routeIds.forEach((row) {
       routeList.add(stationList.keys
@@ -178,9 +175,7 @@ class Services extends ChangeNotifier {
       });
     });
 
-    if(airportFare!=null)
-      fare = fare.compareTo(airportFare)?fare:airportFare;
-
+    if (airportFare != null) fare = airportFare;
     return fare;
   }
 
@@ -196,10 +191,24 @@ class Services extends ChangeNotifier {
     routeIds.forEach((id) {
       lines.add(lineMap[id]);
     });
-    for (int i = 1; i < lines.length - 1; i++) {
-      if (lines[i] != lines[i - 1]) {
-        if (lines[i] != lines[i + 1]) {
-          lines[i] = lines[i + 1];
+
+    for (int i = 0; i < lines.length - 1; i++) {
+      if (lines[i] != lines[i + 1]) {
+        if (connectedLines.containsKey(routeIds[i])) {
+          List cLines = connectedLines[routeIds[i]];
+          cLines.forEach((id) {
+            if (id == lines[i + 1]) lines[i] = lines[i + 1];
+          });
+        }
+      }
+    }
+    for (int i = 0; i < lines.length - 1; i++) {
+      if (lines[i] != lines[i + 1]) {
+        if (connectedLines.containsKey(routeIds[i])) {
+          List cLines = connectedLines[routeIds[i]];
+          cLines.forEach((id) {
+            if (id == lines[i + 1]) lines[i] = lines[i + 1];
+          });
         }
       }
     }
@@ -215,7 +224,6 @@ class Services extends ChangeNotifier {
   }
 
   getLineColor() async {
-    print('Line color called');
     await db
         .rawQuery("SELECT line_id, color_code FROM tbl_lines")
         .then((value) {
@@ -225,14 +233,27 @@ class Services extends ChangeNotifier {
     });
   }
 
+  getConnectedLines() async {
+    await db
+        .rawQuery(
+            "SELECT station_id,ConnectedLines FROM tbl_stations where ConnectedLines!=0 AND ConnectedLines!=''")
+        .then((value) {
+      value.forEach((row) {
+        connectedLines[row['station_id']] = row['ConnectedLines'].split(',');
+      });
+    });
+//    print('CL: $connectedLines');
+  }
+
   getRouteObject() async {
     String time = await getRouteTime();
+//    print('1');
     String fare = await getFare();
     List routeList = await getShortestRoute();
     List lines = await getLines();
     String switches = await getSwitches();
-
-    return route.Route(
+    time = (int.parse(time)+(int.parse(switches)*10)).toString();
+    return Journey(
         time: time,
         fare: fare,
         switches: switches.toString(),
