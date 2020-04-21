@@ -247,7 +247,6 @@ class Services extends ChangeNotifier {
 
   getRouteObject() async {
     String time = await getRouteTime();
-//    print('1');
     String fare = await getFare();
     List routeList = await getShortestRoute();
     List lines = await getLines();

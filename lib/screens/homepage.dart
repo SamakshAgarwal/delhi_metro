@@ -143,6 +143,10 @@ class _HomePageState extends State<HomePage> {
                     services.createSuggestions(controller.text);
                   },
                   onChanged: (text) {
+                    if (controller == startStationController)
+                      isStartSelected = false;
+                    else
+                      isDestSelected = false;
                     services.createSuggestions(text);
                   },
 //                  onSubmitted: (text) {
@@ -190,7 +194,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       itemBuilder: (context, index) => ListTile(
                         onTap: () {
-                          if(controller==startStationController)
+                          if (controller == startStationController)
                             isStartSelected = true;
                           else
                             isDestSelected = true;
